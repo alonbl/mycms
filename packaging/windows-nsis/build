@@ -1,0 +1,31 @@
+#!/bin/sh
+
+die() {
+	local m="$1"
+	echo "FATAL: ${m}" >&2
+	exit 1
+}
+
+dospath() {
+	local p="$1"
+	realpath "${p}" | sed 's#/#\\#g'
+}
+
+srcdir="$(dirname "$0")"
+
+MAKENSIS="${MAKENSIS:-makensis}"
+DESTDIR="${DESTDIR:-destdir}"
+OUTPUTDIR="${OUTPUTDIR:-.}"
+
+. "${DESTDIR}/package.info"
+
+WITH_CRYPTO="openssl"
+
+exec "${MAKENSIS}" \
+	-DPACKAGE_NAME="${PACKAGE_NAME}" \
+	-DPACKAGE_VERSION="${PACKAGE_VERSION}" \
+	-DPACKAGE_BUILD_ID="${PACKAGE_BUILD_ID}" \
+	-DDESTDIR="$(dospath "${DESTDIR}")" \
+	-DWITH_CRYPTO="${WITH_CRYPTO}" \
+	-DOUTPUT="$(dospath "${OUTPUTDIR}/${PACKAGE_NAME}-${PACKAGE_VERSION}-${WITH_CRYPTO}${EXTRA_NAME}-setup.exe")" \
+	"${srcdir}/mycms.nsi" || die "makensis"

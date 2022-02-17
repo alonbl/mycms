@@ -1,0 +1,31 @@
+[PATCH] wsl2 interop overrides argv[0]
+
+https://github.com/microsoft/WSL/issues/8162
+
+---
+
+--- ltmain.sh.org	2022-04-01 02:00:42.719606700 +0300
++++ ltmain.sh	2022-04-01 02:01:33.139606700 +0300
+@@ -5620,6 +5620,9 @@ EOF
+ #ifdef _MSC_VER
+ # define _CRT_SECURE_NO_DEPRECATE 1
+ #endif
++#ifdef _WIN32
++#include <windows.h>
++#endif
+ #include <stdio.h>
+ #include <stdlib.h>
+ #ifdef _MSC_VER
+@@ -5831,6 +5834,12 @@ main (int argc, char *argv[])
+ 
+   int i;
+ 
++#ifdef _WIN32
++  char modulepath[1024];
++  GetModuleFileNameA(GetModuleHandleA(NULL), modulepath, sizeof(modulepath));
++  argv[0] = modulepath;
++#endif
++
+   program_name = (char *) xstrdup (base_name (argv[0]));
+   newargz = XMALLOC (char *, (size_t) argc + 1);
+ 

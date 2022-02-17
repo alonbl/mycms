@@ -1,0 +1,6 @@
+mycms_construct
+mycms_destruct
+mycms_get_context
+mycms_get_error
+mycms_get_system
+mycms_new

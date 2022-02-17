@@ -1,0 +1,8 @@
+mycms_context_construct
+mycms_context_destruct
+mycms_context_error_reset
+mycms_context_get_error
+mycms_context_get_system
+mycms_context_get_user_context
+mycms_context_new
+mycms_context_set_user_context

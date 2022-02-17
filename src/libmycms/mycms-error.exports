@@ -1,0 +1,6 @@
+mycms_error_format
+mycms_error_format_callback
+mycms_error_format_simple
+mycms_error_get_key_desc
+mycms_error_has_error
+mycms_error_reset

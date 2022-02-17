@@ -1,0 +1,37 @@
+Source: mycms
+Section: utils
+Priority: optional
+Maintainer: Alon Bar-Lev <alon.barlev@gmail.com>
+Uploaders: Alon Bar-Lev <alon.barlev@gmail.com>
+Rules-Requires-Root: no
+Build-Depends: debhelper,
+               libssl-dev,
+               pkg-config
+Standards-Version: 4.6.0.2
+Homepage: https://github.com/alonbl/mycms
+Vcs-Git: https://github.com/alonbl/mycms.git
+Vcs-Browser: https://github.com/alonbl/mycms.git
+
+Package: libmycms1
+Section: libs
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends},
+Description: library for simple cms tools.
+ mycms is a simple cms tool.
+
+Package: libmycms-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: libmycms1 (= ${binary:Version}), ${misc:Depends}
+Description: development files for simple cms tools.
+ mycms is a simple cms tool.
+
+Package: mycms
+Architecture: any
+Multi-Arch: foreign
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: simple cms tools.
+ mycms is a simple cms tool.

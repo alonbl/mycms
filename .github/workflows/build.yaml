@@ -1,0 +1,525 @@
+---
+name: build
+
+#######################################
+# GITHUB WORKFLOW BAD LOG
+#
+# Cannot check cache hit, the actions/cache always extract the cache
+# No wait to share cache between branches
+# Cannot depend on matrix instance
+# Matrix instance cannot depend
+# Cannot matrix when calling workflows
+# No way to reuse matrix
+# Cannot call nested workflows
+# Cannot run workflow from a step
+# No way for a step to call step
+
+on:
+  pull_request:
+  push:
+
+env:
+  caches_version: v1
+
+jobs:
+
+  #############################################################################################################
+  # CACHES
+  #############################################################################################################
+
+  C-openssl-binaries:
+    name: ${{ matrix.version}}-${{ matrix.os }}@C-openssl-binaries
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+        - version: "1.1.1"
+          os: windows
+          dependencies: mingw-w64
+          branch: OpenSSL_1_1_1-stable
+          cross-compile-prefix: x86_64-w64-mingw32-
+          target: mingw64
+        - version: "3.0"
+          os: linux
+          dependencies:
+          branch: openssl-3.0
+          cross-compile-prefix:
+          target:
+        - version: "3.0"
+          os: windows
+          dependencies: mingw-w64
+          branch: openssl-3.0
+          cross-compile-prefix: x86_64-w64-mingw32-
+          target: mingw64
+    env:
+      openssl_name: openssl-${{ matrix.version }}-binaries-${{ matrix.os }}
+
+    steps:
+    - name: cache
+      id: cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.openssl_name }}
+        key: ${{ env.openssl_name }}-${{ env.caches_version }}
+    - name: dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        sudo apt update
+        sudo apt install -y \
+            build-essential \
+            ${{ matrix.dependencies }}
+    - name: checkout
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/checkout@v3
+      with:
+        repository: openssl/openssl
+        ref: ${{ matrix.branch }}
+        path: openssl
+    - name: build
+      if: steps.cache.outputs.cache-hit != 'true'
+      working-directory: openssl
+      run: |
+        ./Configure \
+                --prefix="${GITHUB_WORKSPACE}/${{ env.openssl_name }}" \
+                --libdir=lib \
+                --cross-compile-prefix=${{ matrix.cross-compile-prefix }} \
+                ${{ matrix.target }}
+        make install_dev
+
+  #############################################################################################################
+  # SOURCES
+  #############################################################################################################
+
+  B-P-mycms-dist:
+    name: B-P-mycms-dist
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y \
+                autoconf \
+                automake \
+                autotools-dev \
+                easy-rsa \
+                libssl-dev \
+                libtool \
+                pkg-config \
+                softhsm
+    - name: mycms-checkout
+      uses: actions/checkout@v3
+      with:
+        path: mycms
+    - name: mycms-prepare
+      run: |
+        mkdir -p mycms-build/distcheck
+    - name: mycms-generate
+      working-directory: mycms
+      run: |
+        autoreconf -ivf
+    - name: mycms-distcheck
+      working-directory: mycms-build/distcheck
+      run: |
+        "${GITHUB_WORKSPACE}/mycms/configure"
+        make distcheck
+    - name: mycms-dist-misc
+      run: |
+        tar -C mycms -czf mycms-packaging.tar.gz --transform 's#^[^/]*#mycms-packaging#' packaging
+    - name: mycms-dist-upload
+      uses: actions/upload-artifact@v3
+      with:
+        name: mycms-dist
+        path: |
+          mycms-build/distcheck/mycms-*.bz2
+    - name: mycms-misc-upload
+      uses: actions/upload-artifact@v3
+      with:
+        name: mycms-misc
+        path: |
+          mycms-packaging.tar.gz
+    - name: logs-upload
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: logs
+        path: |
+          **/*.log
+
+  #############################################################################################################
+  # BUILD
+  #############################################################################################################
+
+  B-generic:
+    name: ${{ matrix.os }}-${{ matrix.crypto }} (V=${{ matrix.valgrind }})@B-generic
+    needs:
+    - B-P-mycms-dist
+    - C-openssl-binaries
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - windows
+        - linux
+        valgrind:
+        - 0
+        - 1
+        crypto:
+        - openssl-1.1.1
+        - openssl-3.0
+        exclude:
+        - os: windows
+          valgrind: 1
+
+    env:
+      crypto_name: ${{ matrix.crypto }}-binaries-${{ matrix.os }}
+      mycms_name: mycms-binaries-${{ matrix.os }}-${{ matrix.crypto }}
+
+    steps:
+    - name: env
+      run: |
+        export MYCMS_DO_VALGRIND=0
+        export MYCMS_COPY=
+        export MYCMS_DEPS=
+        export MYCMS_EXTRA_CONF=
+        export MYCMS_HOST=
+        export MYCMS_INSTALL=0
+        export MYCMS_PACKAGE=0
+
+        case "${{ matrix.os }}/${{ matrix.crypto}}/${{ matrix.valgrind }}" in
+            */*/0)
+                MYCMS_INSTALL=1
+                ;;
+            */*/1)
+                MYCMS_DO_VALGRIND=1
+                MYCMS_DEPS="${MYCMS_DEPS} valgrind"
+                MYCMS_INSTALL=0
+                ;;
+        esac
+        case "${{ matrix.os }}/${{ matrix.crypto}}/${{ matrix.valgrind }}" in
+            linux/*/*)
+                MYCMS_DEPS="${MYCMS_DEPS} softhsm"
+                ;;
+            windows/*/*)
+                MYCMS_HOST="x86_64-w64-mingw32"
+                MYCMS_DEPS="${MYCMS_DEPS} mingw-w64"
+                MYCMS_PACKAGE="1"
+                ;;
+        esac
+        case "${{ matrix.os }}/${{ matrix.crypto}}/${{ matrix.valgrind }}" in
+            linux/openssl-1.1.1/*)
+                MYCMS_DEPS="${MYCMS_DEPS} libssl-dev"
+                ;;
+            windows/openssl-*/*)
+                MYCMS_COPY="bin/libcrypto-*-x64.dll"
+                ;;
+        esac
+        env | grep '^MYCMS_' >> "${GITHUB_ENV}"
+        env | grep '.*_CFLAGS\|.*_LIBS' >> "${GITHUB_ENV}" || true
+    - name: ${{ env.crypto_name }} cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.crypto_name }}
+        key: ${{ env.crypto_name }}-${{ env.caches_version }}
+    - name: dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y \
+            build-essential \
+            easy-rsa \
+            pkg-config \
+            ${MYCMS_DEPS}
+    - name: mycms-dist-download
+      uses: actions/download-artifact@v3
+      with:
+        name: mycms-dist
+        path: dist
+    - name: mycms-prepare
+      run: |
+        tar -xf dist/mycms-*.bz2
+        ln -s mycms-* mycms
+        mkdir -p mycms-build/${{ env.mycms_name }}-${{ matrix.valgrind }}
+    - name: mycms-build
+      working-directory: mycms-build/${{ env.mycms_name }}-${{ matrix.valgrind }}
+      run: |
+        "${GITHUB_WORKSPACE}/mycms/conf-dev.sh" \
+            --host=${MYCMS_HOST} \
+            PKG_CONFIG_PATH="${GITHUB_WORKSPACE}/${{ env.crypto_name }}/lib/pkgconfig" \
+            ${MYCMS_EXTRA_CONF}
+        LD_LIBRARY_PATH="${GITHUB_WORKSPACE}/${{ env.crypto_name }}/lib" \
+            make check
+        if [ "${MYCMS_INSTALL}" = "1" ]; then
+            make install DESTDIR="${GITHUB_WORKSPACE}/${{ env.mycms_name }}"
+        fi
+        if [ -n "${MYCMS_COPY}" ]; then
+            cp "${GITHUB_WORKSPACE}/${{ env.crypto_name }}"/${MYCMS_COPY} "${GITHUB_WORKSPACE}/${{ env.mycms_name }}/usr/local/bin"
+        fi
+    - name: binaries-upload
+      if: ${{ env.MYCMS_PACKAGE == 1 }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.mycms_name }}
+        path: |
+          ${{ env.mycms_name }}/usr/local
+    - name: logs-upload
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: logs
+        path: |
+          **/*.log
+
+  B-generic-wsl:
+    name: ${{ matrix.crypto }}@B-generic-wsl
+    needs:
+    - B-P-mycms-dist
+    - C-openssl-binaries
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        crypto:
+        - openssl-1.1.1
+        - openssl-3.0
+    defaults:
+      run:
+        shell: wsl-bash {0}
+    env:
+      crypto_name: ${{ matrix.crypto }}-binaries-windows
+      mycms_name: mycms-binaries-windows-${{ matrix.crypto }}
+      WSLENV: GITHUB_WORKSPACE/p
+
+    steps:
+    - name: "Use GNU tar instead BSD tar"
+      # https://github.com/actions/cache/issues/591
+      shell: cmd
+      run: echo C:\Program Files\Git\usr\bin>>"%GITHUB_PATH%"
+    - name: ${{ env.crypto_name }} cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.crypto_name }}
+        key: ${{ env.crypto_name }}-${{ env.caches_version }}
+    - name: wsl-setup
+      uses: Vampire/setup-wsl@v1
+      with:
+        distribution: Ubuntu-20.04
+        additional-packages:
+          build-essential
+          easy-rsa
+          mingw-w64
+          pkg-config
+        wsl-conf: |
+          [interop]
+          enabled=true
+          appendWindowsPath=false
+    - name: mycms-dist-download
+      uses: actions/download-artifact@v3
+      with:
+        name: mycms-dist
+        path: dist
+    - name: mycms-prepare
+      run: |
+        tar -xf dist/mycms-*.bz2
+        ln -s mycms-* mycms
+        mkdir -p mycms-build/${{ env.mycms_name }}-wsl
+    - name: patch
+      working-directory: mycms
+      run: |
+        patch -p0 < wsl-fixup-libtool-argv0.patch
+        patch -p0 < wsl-fixup-wsl1-skip-env.patch
+    - name: mycms-build
+      env:
+        WSLENV: GITHUB_WORKSPACE/p:Path/l:LT_SKIP_ENV
+      working-directory: mycms-build/${{ env.mycms_name }}-wsl
+      run: |
+        # @BEGIN: WSL1 Workarounds
+        # Libtool path injection breaks runtime environment
+        export Path="$(pwd)/src/libmycms/.libs:$(pwd)/src/libmycms-util/.libs:${GITHUB_WORKSPACE}/${{ env.crypto_name }}/bin/:${Path}"
+        export LT_SKIP_ENV=1
+        # Absolute POSIX paths are not supported
+        export TMPDIR=.
+        # @END: WSL1 Workarounds
+
+        "${GITHUB_WORKSPACE}/mycms/conf-dev.sh" \
+            --host=x86_64-w64-mingw32 \
+            --prefix=/ \
+            PKG_CONFIG_PATH="${GITHUB_WORKSPACE}/${{ env.crypto_name }}/lib/pkgconfig" \
+            PKG_CONFIG="pkg-config --define-prefix"
+        make check
+    - name: logs-upload
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: logs
+        path: |
+          **/*.log
+
+  #############################################################################################################
+  # PACKAGING
+  #############################################################################################################
+
+  B-P-ubuntu:
+    name: B-P-ubuntu
+    needs:
+    - B-P-mycms-dist
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:latest
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      TZ: America/New_York
+
+    steps:
+    - name: dependencies
+      run: |
+        apt update
+        apt install -y \
+                build-essential \
+                devscripts \
+                equivs
+    - name: mycms-dist-download
+      uses: actions/download-artifact@v3
+      with:
+        name: mycms-dist
+        path: dist
+    - name: extract
+      run: |
+        tar -xf dist/mycms-*.bz2
+        ln -s mycms-* mycms
+    - name: prepare
+      working-directory: mycms
+      run: |
+        ln -s packaging/debian
+    - name: dependencies
+      working-directory: mycms
+      run: |
+        mk-build-deps -i --tool="apt-get -y -o Debug::pkgProblemResolver=yes --no-install-recommends"
+    - name: build
+      working-directory: mycms
+      run: |
+        debuild -b -uc -us -i
+    - name: create-repo
+      run: |
+        mkdir mycms-repo
+        cp *.deb mycms-repo
+        cd mycms-repo
+        dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
+    - name: mycms-deb-repo-upload
+      uses: actions/upload-artifact@v3
+      with:
+        name: mycms-deb-repo
+        path: |
+          mycms-repo
+
+  P-installers-windows:
+    name: ${{ matrix.crypto }}@P-installers-windows
+    needs:
+    - B-generic
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        crypto:
+        - openssl-1.1.1
+        - openssl-3.0
+
+    steps:
+    - name: dependencies
+      run: |
+        sudo apt update
+        sudo apt install \
+            nsis
+    - name: mycms-misc-download
+      uses: actions/download-artifact@v3
+      with:
+        name: mycms-binaries-windows-${{ matrix.crypto }}
+        path: mycms-binaries-windows-${{ matrix.crypto }}
+    - name: mycms-misc-download
+      uses: actions/download-artifact@v3
+      with:
+        name: mycms-misc
+        path: misc
+    - name: prepare
+      run: |
+        tar -xf misc/mycms-packaging.tar.gz
+    - name: mycms-package
+      run: |
+        DESTDIR="mycms-binaries-windows-${{ matrix.crypto }}" \
+            EXTRA_NAME="$(echo "${{ matrix.crypto }}" | sed -n -e 's/.*\(-.*\)/\1/p')" \
+            mycms-packaging/windows-nsis/build
+    - name: installers-upload
+      uses: actions/upload-artifact@v3
+      with:
+        name: mycms-installers-windows-${{ matrix.crypto }}
+        path: |
+          mycms-*-setup.exe
+
+  #############################################################################################################
+  # TESTS
+  #############################################################################################################
+
+  T-P-ubuntu:
+    name: T-P-ubuntu
+    needs:
+    - B-P-ubuntu
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:latest
+      options: --privileged
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      TZ: America/New_York
+
+    steps:
+    - name: mycms-deb-repo-download
+      uses: actions/download-artifact@v3
+      with:
+        name: mycms-deb-repo
+        path: mycms-repo
+    - name: setup-repo
+      run: |
+        cat > /etc/apt/sources.list.d/mycms.list << __EOF__
+        deb [trusted=yes] file://${GITHUB_WORKSPACE}/mycms-repo ./
+        __EOF__
+    - name: install
+      run: |
+        apt update
+        apt install -y \
+          mycms
+    - name: test
+      run: |
+        mycms-tool --version
+
+  T-P-installers-windows:
+    name: ${{ matrix.crypto }}@T-P-installers-windows
+    needs:
+    - P-installers-windows
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        crypto:
+        - openssl-1.1.1
+        - openssl-3.0
+
+    steps:
+    - name: mycms-misc-download
+      uses: actions/download-artifact@v3
+      with:
+        name: mycms-installers-windows-${{ matrix.crypto }}
+    - name: test
+      run: |
+        $f = Get-ChildItem mycms-*-${{ matrix.crypto }}-setup.exe | Select-Object -First 1
+
+        $p = Start-Process -FilePath $f -Wait -Verb RunAs -PassThru -ArgumentList "/S","/SELECT_MYCMS_TOOLS=1","/SELECT_MYCMS_SDK=1","/D=C:\Program Files\mycms"
+        if ($p.ExitCode -ne 0) {
+            throw "FAIL (Install)"
+        }
+
+        if (-not(Test-Path -Path "C:\Program Files\mycms\include\mycms\mycms.h" -PathType Leaf)) {
+            throw "The install failed"
+        }
+
+        $p = Start-Process -FilePath "C:\Program Files\mycms\bin\mycms-tool.exe" -ArgumentList "--version" -NoNewWindow -Wait -PassThru
+        if ($p.ExitCode -ne 0) {
+            throw "FAIL (Sanity)"
+        }

@@ -1,0 +1,9 @@
+*-stamp
+*.substvars
+.debhelper
+autoreconf.*
+files
+libmycms-dev
+libmycms1
+mycms
+tmp
