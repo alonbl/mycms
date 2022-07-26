@@ -1,4 +1,10 @@
-mycms (0.2.0-master) devel; urgency=low
+mycms (0.1.1) devel; urgency=low
+
+  * Fix CMS_SignerInfo_verify
+
+ -- Alon Bar-Lev <alon.barlev@gmail.com>  Tue, 26 Jul 2022 00:00:00 +0000
+
+mycms (0.1.0) devel; urgency=low
 
   * Initial package
 

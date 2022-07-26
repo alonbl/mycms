@@ -1,8 +1,9 @@
 mycms
 Copyright (c) 2022 Alon Bar-Lev <alon.barlev@gmail.com>
 
-????-??-?? - Version 0.2.0
+2022-07-26 - Version 0.1.1
 
+ * Fix CMS_SignerInfo_verify.
 
 2022-05-11 - Version 0.1.0
 
