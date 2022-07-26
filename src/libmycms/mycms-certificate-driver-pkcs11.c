@@ -1045,6 +1045,13 @@ __driver_rsa_private_op(
 	}
 
 	if (!__open_private_key(certificate)) {
+		_mycms_error_entry_dispatch(_mycms_error_entry_base(
+			_mycms_error_capture(mycms_context_get_error(mycms_certificate_get_context(certificate))),
+			"certificate.driver.pkcs11.open.privatekey",
+			MYCMS_ERROR_CODE_RESOURCE_ACCESS,
+			true,
+			"Failed to load private key"
+		));
 		goto cleanup;
 	}
 
