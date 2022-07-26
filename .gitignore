@@ -33,7 +33,7 @@ config.log
 config.status
 config.sub
 configure
-debian
+/debian
 depcomp
 gen
 install-sh
