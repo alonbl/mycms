@@ -156,6 +156,33 @@ test_sanity() {
 	return 0
 }
 
+test_invalid_pin() {
+	local PREFIX="${MYTMP}/invalid_pin"
+	local CMS="${PREFIX}-cms"
+	local BADDATA="${PREFIX}-baddata"
+	local out
+	local test1_keyid
+	local test2_keyid
+
+	cp "${DATA}" "${BADDATA}"
+	echo 1 >> "${BADDATA}"
+
+	test1_keyid="$(get_keyid "${builddir}/gen/test1.crt")" || die "test1.keyid"
+
+	# openssl bug https://github.com/openssl/openssl/pull/18876
+	(
+	echo "Signing by test1"
+	doval "${MYCMS_TOOL}" --verbose sign \
+		--cms-out="${CMS}" \
+		--data-in="${DATA}" \
+		--signer-cert="pkcs11:module=${SOFTHSM2_MODULE}:token-label=token1:cert-label=test1" \
+		--signer-cert-pass="token=pass=bad_secret" \
+		&& die "invalid_pin.sign should fail"
+	) || :
+
+	return 0
+}
+
 [ -x "${MYCMS_TOOL}" ] || skip "no tool"
 features="$("${MYCMS_TOOL}" --version | grep "Features")" || die "Cannot execute tool"
 echo "${features}" | grep -q "sane" || die "tool is insane"
@@ -179,7 +206,7 @@ export SOFTHSM2_CONF="${MYTMP}/softhsm2.conf"
 
 prepare_token
 
-TESTS="${TESTS:-test_sanity}"
+TESTS="${TESTS:-test_sanity test_invalid_pin}"
 
 for test in $TESTS; do
 	echo "------------------------"
