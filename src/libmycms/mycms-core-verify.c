@@ -418,13 +418,27 @@ mycms_verify(
 				CMS_SignerInfo_get0_algs(signer, NULL, NULL, &dig, NULL);
 
 				if (isigners_i->signer.digest == NULL || OBJ_cmp(dig->algorithm, isigners_i->signer.digest) == 0) {
+
+					CMS_SignerInfo_set1_signer_cert(signer, isigners_i->signer.x509);
+
+					if (CMS_SignerInfo_verify(signer) <= 0) {
+						_mycms_error_entry_dispatch(_error_entry_openssl_status(_mycms_error_entry_base(
+							_mycms_error_capture(mycms_context_get_error(mycms_get_context(mycms))),
+							"core.verify.do",
+							MYCMS_ERROR_CODE_CRYPTO,
+							true,
+							"Signer verify failed"
+						)));
+						goto cleanup;
+					}
+
 					if (CMS_SignerInfo_verify_content(signer, cmsbio) <= 0) {
 						_mycms_error_entry_dispatch(_error_entry_openssl_status(_mycms_error_entry_base(
 							_mycms_error_capture(mycms_context_get_error(mycms_get_context(mycms))),
 							"core.verify.do",
 							MYCMS_ERROR_CODE_CRYPTO,
 							true,
-							"Verify failed"
+							"Content verify failed"
 						)));
 						goto cleanup;
 					}
