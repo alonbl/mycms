@@ -239,6 +239,8 @@ _cmd_verify(
 		printf("VERIFIED");
 	} else {
 		printf("FAILED");
+		ret = 2;
+		goto cleanup;
 	}
 
 	ret = 0;

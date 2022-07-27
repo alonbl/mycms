@@ -140,18 +140,14 @@ test_sanity() {
 		--cms-in="${CMS}" \
 		--data-in="${DATA}" \
 		--cert="${builddir}/gen/test2.crt" \
-		)" || die "sanity.verify.wrong"
-
-	[ "${out}" = "VERIFIED" ] && die "sanity.verify.wrong.result '${out}'"
+		)" && die "sanity.verify.wrong"
 
 	echo "Verify signature with bad data"
 	out="$(doval "${MYCMS_TOOL}" verify \
 		--cms-in="${CMS}" \
 		--data-in="${BADDATA}" \
 		--cert="${builddir}/gen/test1.crt" \
-		)" || die "sanity.verify.bad"
-
-	[ "${out}" = "VERIFIED" ] && die "sanity.verify.bad.result '${out}'"
+		)" && die "sanity.verify.bad"
 
 	return 0
 }
