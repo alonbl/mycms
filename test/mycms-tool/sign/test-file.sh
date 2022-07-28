@@ -84,18 +84,18 @@ test_sanity() {
 		--cms-in="${CMS}" \
 		--data-in="${DATA}" \
 		--cert="${builddir}/gen/test2.crt" \
-		)" || die "sanity.verify.wrong"
+		)" || [ $? -eq 2 ] || die "sanity.verify.wrong"
 
-	[ "${out}" = "VERIFIED" ] && die "sanity.verify.wrong.result '${out}'"
+	[ "${out}" = "FAILED" ] || die "sanity.verify.wrong.result '${out}'"
 
 	echo "Verify signature with bad data"
 	out="$(doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
 		--cms-in="${CMS}" \
 		--data-in="${BADDATA}" \
 		--cert="${builddir}/gen/test1.crt" \
-		)" || die "sanity.verify.bad"
+		)" || [ $? -eq 2 ] || die "sanity.verify.bad"
 
-	[ "${out}" = "VERIFIED" ] && die "sanity.verify.bad.result '${out}'"
+	[ "${out}" = "FAILED" ] || die "sanity.verify.bad.result '${out}'"
 
 	return 0
 }
@@ -135,32 +135,26 @@ test_two() {
 	echo "${out}" | grep -iq "^${test2_keyid} SHA3-256$" || die "Keyid mismatch expected '${test2_keyid}' actual '${out}'"
 
 	echo "Verify signature"
-	out="$(doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
+	doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
 		--cms-in="${CMS2}" \
 		--data-in="${DATA}" \
 		--cert="${builddir}/gen/test1.crt" \
 		--cert="${builddir}/gen/test2.crt" \
-		)" || die "sanity.verify.${x}"
-
-	[ "${out}" = "VERIFIED" ] || die "sanity.verify2.result '${out}'"
+		|| die "sanity.verify.${x}"
 
 	echo "Verify signature single signer"
-	out="$(doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
+	doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
 		--cms-in="${CMS2}" \
 		--data-in="${DATA}" \
 		--cert="${builddir}/gen/test1.crt" \
-		)" || die "sanity.verify.single"
-
-	[ "${out}" = "VERIFIED" ] || die "sanity.verify.single.result '${out}'"
+		|| die "sanity.verify.single"
 
 	echo "Verify signature wrong signer"
-	out="$(doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
+	doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
 		--cms-in="${CMS2}" \
 		--data-in="${DATA}" \
 		--cert="${builddir}/gen/test3.crt" \
-		)" || die "sanity.verify.wrong"
-
-	[ "${out}" = "VERIFIED" ] && die "sanity.verify.wrong.result '${out}'"
+		|| [ $? -eq 2 ] || die "sanity.verify.wrong"
 
 	return 0
 }
@@ -224,52 +218,44 @@ ${test3_keyid} SHA3-256"
 	[ "$(echo "${out}" | sort | tr [a-z] [A-Z])" = "$(echo "${expected}" | sort | tr [a-z] [A-Z])" ] || die "Incorrect output expected='${expected}' actual='${out}'"
 
 	echo "Verify signature"
-	out="$(doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
+	doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
 		--cms-in="${CMS3}" \
 		--data-in="${DATA}" \
 		--cert="${builddir}/gen/test1.crt" \
 		--cert="${builddir}/gen/test2.crt" \
-		)" || die "sanity.verify.sanity"
-
-	[ "${out}" = "VERIFIED" ] || die "sanity.verify2.result '${out}'"
+		|| die "sanity.verify.sanity"
 
 	for digest in sha1 sha256; do
 		for cert in test1 test2; do
 			echo "Verify signature with specific digest [${digest}/${cert}]"
-			out="$(doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
+			doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
 				--cms-in="${CMS3}" \
 				--data-in="${DATA}" \
 				--digest="${digest}" \
 				--cert="${builddir}/gen/${cert}.crt" \
-				)" || die "sanity.verify.${digest}.${cert}"
-
-			[ "${out}" = "VERIFIED" ] || die "sanity.verify3.result '${out}'"
+				|| die "sanity.verify.${digest}.${cert}"
 		done
 	done
 
 	digest=sha3-256
 	for cert in test1 test3; do
 		echo "Verify signature with specific digest [${digest}/${cert}]"
-		out="$(doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
+		"${MYCMS_TOOL}" --stdio-eol=lf verify \
 			--cms-in="${CMS3}" \
 			--data-in="${DATA}" \
 			--digest="${digest}" \
 			--cert="${builddir}/gen/${cert}.crt" \
-			)" || die "sanity.verify.${digest}.${cert}"
-
-		[ "${out}" = "VERIFIED" ] || die "sanity.verify3.result '${out}'"
+			|| die "sanity.verify.${digest}.${cert}"
 	done
 
 	for digest in sha1 sha256; do
 		echo "Should fail verify with unused digest"
-		out="$(doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
+		doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
 			--cms-in="${CMS3}" \
 			--data-in="${DATA}" \
 			--digest="${digest}" \
 			--cert="${builddir}/gen/test3.crt" \
-			)" || die "sanity.verify.invalid.digest.${digest}"
-
-		[ "${out}" = "VERIFIED" ] && die "sanity.verify.invalid.digest.digest.${digest} '${out}'"
+			|| [ $? -eq 2 ] || die "sanity.verify.invalid.digest.${digest}"
 	done
 
 	return 0
@@ -279,7 +265,6 @@ test_keyopt() {
 	local PREFIX="${MYTMP}/keyopt"
 	local CMS="${PREFIX}-cms"
 	local CMS2="${PREFIX}-cms2"
-	local out
 	local test1_keyid
 	local test2_keyid
 
@@ -300,13 +285,11 @@ test_keyopt() {
 		[ 1 -eq $("${OPENSSL}" asn1parse -in "${CMS}" -inform DER | grep "${padding_str}" | wc -l) ] || die "Expected '${padding_str}' for '${padding}'"
 
 		echo "Verify signature"
-		out="$(doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
+		doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
 			--cms-in="${CMS}" \
 			--data-in="${DATA}" \
 			--cert="${builddir}/gen/test1.crt" \
-			)" || die "keyopt.verify.${x}"
-
-		[ "${out}" = "VERIFIED" ] || die "keyopt.verify2.result '${out}'"
+			|| die "keyopt.verify.${x}"
 
 	done << __EOF__
 pkcs1:rsaEncryption
@@ -341,14 +324,12 @@ __EOF__
 		[ 2 -eq $("${OPENSSL}" asn1parse -in "${CMS2}" -inform DER | grep "${padding_str}" | wc -l) ] || die "Expected '${padding_str}' for '${padding}'"
 
 		echo "Verify signature"
-		out="$(doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
+		doval "${MYCMS_TOOL}" --stdio-eol=lf verify \
 			--cms-in="${CMS2}" \
 			--data-in="${DATA}" \
 			--cert="${builddir}/gen/test1.crt" \
 			--cert="${builddir}/gen/test2.crt" \
-			)" || die "keyopt.verify2.${x}"
-
-		[ "${out}" = "VERIFIED" ] || die "keyopt.verify2.result '${out}'"
+			|| die "keyopt.verify2.${x}"
 
 	done << __EOF__
 pkcs1:rsaEncryption

@@ -236,12 +236,12 @@ _cmd_verify(
 	}
 
 	if (verified) {
+		ret = 0;
 		printf("VERIFIED");
 	} else {
+		ret = 2;
 		printf("FAILED");
 	}
-
-	ret = 0;
 
 cleanup:
 
