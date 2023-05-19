@@ -81,13 +81,35 @@ $ dpkg -i mycms*.deb
 #### Dependencies
 
 ```
-$ sudo apt install nsis
+$ sudo apt install mingw-w64 nsis
 ```
 
 #### Build
 
 ```
-$ ./configure --host=x86-w64-mingw32 --prefix=/ ...
-$ make install DESTDIR="$(pwd)/tmp"
-$ DESTDIR=tmp ./packaging/windows-nsis/build
+$ set MYCMS_PREFIX=/tmp/mycms-prefix
+```
+
+#### OpenSSL Build
+
+Download and extract OpenSSL tarball.
+
+Run the following in OpenSSL source directory:
+
+```
+$ ./Configure --prefix="${MYCMS_PREFIX}" --cross-compile-prefix=x86_64-w64-mingw32- mingw64
+$ make install_dev
+
+```
+
+#### mycms Build
+
+```
+$ ./configure --host=x86_64-w64-mingw32 --prefix="${MYCMS_PREFIX}" \
+    --enable-tool \
+    --enable-io-driver-file \
+    @ANY_ADDITIONAL_CONFIG@ \
+    PKG_CONFIG_PATH="${MYCMS_PREFIX}/lib64/pkgconfig/"
+$ make install
+$ DESTDIR="${MYCMS_PREFIX}" ./packaging/windows-nsis/build
 ```
