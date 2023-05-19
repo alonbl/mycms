@@ -121,7 +121,7 @@ test_add_recepients() {
 		--to="${builddir}/gen/test2.crt" \
 		|| die "add-recip.encrypt"
 
-	echo "Ading to test3 and test4 using test1"
+	echo "Adding to test3 and test4 using test1"
 	doval "${MYCMS_TOOL}" encrypt-add \
 		--cms-in="${CMS1}" \
 		--cms-out="${CMS2}" \
@@ -224,7 +224,7 @@ test_keyopt() {
 			--keyopt="rsa_padding_mode=${padding}" \
 			|| die "add-recip.encrypt"
 
-		echo "Ading to test3 and test4 using test1"
+		echo "Adding to test3 and test4 using test1"
 		doval "${MYCMS_TOOL}" encrypt-add \
 			--cms-in="${CMS1}" \
 			--cms-out="${CMS2}" \
