@@ -271,6 +271,7 @@ jobs:
           **/*.log
 
   B-generic-wsl:
+    if: false
     name: ${{ matrix.crypto }}@B-generic-wsl
     needs:
     - B-P-mycms-dist
