@@ -24,7 +24,7 @@ mycms_sign(
 ) {
 	CMS_ContentInfo *cms = NULL;
 	EVP_PKEY_CTX *ctx = NULL;
-	mycms_list_str t;
+	mycms_list_str digest;
 	int flags = CMS_BINARY | CMS_DETACHED | CMS_USE_KEYID | CMS_NOCERTS | CMS_NOSMIMECAP;
 	bool ret = false;
 
@@ -72,19 +72,19 @@ mycms_sign(
 		flags |= CMS_REUSE_DIGEST;
 	}
 
-	for (t = digests;t != NULL; t = t->next) {
-		const EVP_MD *digest = NULL;
+	for (digest = digests;digest != NULL; digest = digest->next) {
+		const EVP_MD *md = NULL;
 		CMS_SignerInfo *signer = NULL;
 		mycms_list_dict_entry opt;
 
-		if ((digest = EVP_get_digestbyname(t->str)) == NULL) {
+		if ((md = EVP_get_digestbyname(digest->str)) == NULL) {
 			_mycms_error_entry_dispatch(_mycms_error_entry_base(
 				_mycms_error_capture(mycms_context_get_error(mycms_get_context(mycms))),
 				"core.sign.algo",
 				MYCMS_ERROR_CODE_ARGS,
 				true,
 				"Failed to resolve digest '%s'",
-				t->str
+				digest->str
 			));
 			goto cleanup;
 		}
@@ -93,7 +93,7 @@ mycms_sign(
 			cms,
 			_mycms_certificate_get_X509(certificate),
 			_mycms_certificate_get_EVP_PKEY(certificate),
-			digest,
+			md,
 			flags | (mycms_dict_entries(keyopt) == NULL ? 0 : CMS_KEY_PARAM) /* Does not work for 2nd sign, see https://github.com/openssl/openssl/issues/14257 */
 		)) == NULL) {
 			_mycms_error_entry_dispatch(_error_entry_openssl_status(_mycms_error_entry_base(
