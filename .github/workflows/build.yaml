@@ -243,11 +243,13 @@ jobs:
     - name: mycms-build
       working-directory: mycms-build/${{ env.mycms_name }}-${{ matrix.valgrind }}
       run: |
-        "${GITHUB_WORKSPACE}/mycms/conf-dev.sh" \
+        PATH="${GITHUB_WORKSPACE}/${{ env.crypto_name }}/bin:${PATH}" \
+            "${GITHUB_WORKSPACE}/mycms/conf-dev.sh" \
             --host=${MYCMS_HOST} \
             PKG_CONFIG_PATH="${GITHUB_WORKSPACE}/${{ env.crypto_name }}/lib/pkgconfig" \
             ${MYCMS_EXTRA_CONF}
         LD_LIBRARY_PATH="${GITHUB_WORKSPACE}/${{ env.crypto_name }}/lib" \
+            PATH="${GITHUB_WORKSPACE}/${{ env.crypto_name }}/bin:${PATH}" \
             make check
         if [ "${MYCMS_INSTALL}" = "1" ]; then
             make install DESTDIR="${GITHUB_WORKSPACE}/${{ env.mycms_name }}"
