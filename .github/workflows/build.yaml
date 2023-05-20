@@ -42,13 +42,13 @@ jobs:
         - version: "3.0"
           os: linux
           dependencies:
-          branch: openssl-3.0
+          branch: openssl-3.0.7
           cross-compile-prefix:
           target:
         - version: "3.0"
           os: windows
           dependencies: mingw-w64
-          branch: openssl-3.0
+          branch: openssl-3.0.7
           cross-compile-prefix: x86_64-w64-mingw32-
           target: mingw64
     env:
