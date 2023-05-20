@@ -12,6 +12,7 @@ mycmsinclude_HEADERS = \
 	mycms-error.h \
 	mycms-io.h \
 	mycms-list.h \
+	mycms-list-str.h \
 	mycms-static.h \
 	mycms-system-driver-core.h \
 	mycms-system.h \

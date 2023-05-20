@@ -6,6 +6,7 @@
 #include "mycms-certificate.h"
 #include "mycms-io.h"
 #include "mycms-dict.h"
+#include "mycms-list-str.h"
 #include "mycms-context.h"
 
 struct mycms_signer_s {
@@ -14,7 +15,6 @@ struct mycms_signer_s {
 	char *digest;
 };
 
-MYCMS_LIST_DECLARE(str, char *, str)
 MYCMS_LIST_DECLARE(signer, struct mycms_signer_s, signer)
 
 struct __mycms_s;

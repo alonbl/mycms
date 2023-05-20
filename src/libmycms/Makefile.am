@@ -17,6 +17,7 @@ MYCMS_COMMON_EXPORTS = \
 	mycms-dict.exports \
 	mycms-error.exports \
 	mycms-io.exports \
+	mycms-list-str.exports \
 	mycms-static.exports \
 	mycms-system.exports \
 	mycms.exports \
@@ -57,6 +58,7 @@ libmycms_internal_la_SOURCES = \
 	mycms-internal.h \
 	mycms-io-private.h \
 	mycms-io.c \
+	mycms-list-str.c \
 	mycms-openssl.c \
 	mycms-openssl.h \
 	mycms-static.c \

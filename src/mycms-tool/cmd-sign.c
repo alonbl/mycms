@@ -83,15 +83,8 @@ _cmd_sign(
 				ret = 0;
 				goto cleanup;
 			case OPT_DIGEST:
-				{
-					mycms_list_str t;
-
-					if ((t = mycms_system_zalloc(system, "opt.digest", sizeof(*t))) == NULL) {
-						goto cleanup;
-					}
-					t->next = digests;
-					digests = t;
-					t->str = optarg;
+				if (!mycms_list_str_add(system, &digests, optarg)) {
+					goto cleanup;
 				}
 			break;
 			case OPT_CMS_IN:
@@ -156,8 +149,7 @@ _cmd_sign(
 	}
 
 	if (digests == NULL) {
-		digests = mycms_system_zalloc(system, "digests", sizeof(*digests));
-		digests->str = "SHA3-256";
+		mycms_list_str_add(system, &digests, "SHA3-256");
 	}
 
 	if ((certificate_dict = mycms_dict_new(context)) == NULL) {
@@ -236,11 +228,8 @@ _cmd_sign(
 
 cleanup:
 
-	while (digests != NULL) {
-		mycms_list_str t = digests;
-		digests = digests->next;
-		mycms_system_free(system, "digests", t);
-	}
+	mycms_list_str_free(system, digests);
+	digests = NULL;
 
 	mycms_io_destruct(cms_in);
 	cms_in = NULL;
