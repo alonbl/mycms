@@ -4,8 +4,6 @@
 
 #include <string.h>
 
-#include <openssl/crypto.h>
-
 #include <mycms/mycms-dict.h>
 
 struct mycms_dict_s {
