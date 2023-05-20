@@ -301,7 +301,7 @@ jobs:
         path: ${{ env.crypto_name }}
         key: ${{ env.crypto_name }}-${{ env.caches_version }}
     - name: wsl-setup
-      uses: Vampire/setup-wsl@v1
+      uses: Vampire/setup-wsl@v2
       with:
         distribution: Ubuntu-20.04
         additional-packages:
