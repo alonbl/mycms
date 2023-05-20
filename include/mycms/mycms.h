@@ -55,7 +55,7 @@ mycms_sign(
 	const mycms mycms __attribute__((unused)),
 	const mycms_certificate certificate,
 	const mycms_list_str digests,
-	const mycms_dict keyopt,
+	const mycms_list_str keyopts,
 	const mycms_io cms_in,
 	const mycms_io cms_out,
 	const mycms_io data_in
@@ -88,7 +88,7 @@ mycms_encrypt(
 	const mycms mycms,
 	const char * const cipher_name,
 	const mycms_list_blob to,
-	const mycms_dict keyopt,
+	const mycms_list_str keyopts,
 	const mycms_io cms_out,
 	const mycms_io data_pt,
 	const mycms_io data_ct
@@ -99,7 +99,7 @@ mycms_encrypt_add(
 	const mycms mycms,
 	const mycms_certificate certificate,
 	const mycms_list_blob to,
-	const mycms_dict keyopt,
+	const mycms_list_str keyopts,
 	const mycms_io cms_in,
 	const mycms_io cms_out
 );

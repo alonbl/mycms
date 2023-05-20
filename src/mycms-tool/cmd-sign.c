@@ -36,7 +36,7 @@ _cmd_sign(
 		{"digest\0DIGEST|digest to use, default is SHA3-256", required_argument, NULL, OPT_DIGEST},
 		{"signer-cert\0CERTIFICATE_EXPRESSION|signer certificate to use", required_argument, NULL, OPT_SIGNER_CERT},
 		{"signer-cert-pass\0PASSPHRASE_EXPRESSION|signer certificate passphrase to use", required_argument, NULL, OPT_SIGNER_CERT_PASS},
-		{"keyopt\0KEYOPT_EXPRESSION|key options expression", required_argument, NULL, OPT_KEYOPT},
+		{"keyopt\0KEYOPT|key options opt:value, may be specified multiple times", required_argument, NULL, OPT_KEYOPT},
 		{"cms-in\0FILE|input cms for resign", required_argument, NULL, OPT_CMS_IN},
 		{"cms-out\0FILE|output cms", required_argument, NULL, OPT_CMS_OUT},
 		{"data-in\0FILE|input text data", required_argument, NULL, OPT_DATA_IN},
@@ -49,7 +49,6 @@ _cmd_sign(
 
 	const char * certificate_exp = NULL;
 	const char * pass_exp = NULL;
-	const char * keyopt_exp = NULL;
 
 	mycms_system system = mycms_context_get_system(context);
 	mycms mycms = NULL;
@@ -58,7 +57,7 @@ _cmd_sign(
 	mycms_io data_in = NULL;
 	mycms_dict certificate_dict = NULL;
 	mycms_dict pass_dict = NULL;
-	mycms_dict keyopt_dict = NULL;
+	mycms_list_str keyopts = NULL;
 	mycms_certificate certificate = NULL;
 	mycms_list_str digests = NULL;
 
@@ -127,7 +126,9 @@ _cmd_sign(
 				pass_exp = optarg;
 			break;
 			case OPT_KEYOPT:
-				keyopt_exp = optarg;
+				if (!mycms_list_str_add(system, &keyopts, optarg)) {
+					goto cleanup;
+				}
 			break;
 			default:
 				fprintf(stderr, "Invalid option\n");
@@ -176,18 +177,6 @@ _cmd_sign(
 		goto cleanup;
 	}
 
-	if ((keyopt_dict = mycms_dict_new(context)) == NULL) {
-		goto cleanup;
-	}
-
-	if (!mycms_dict_construct(keyopt_dict)) {
-		goto cleanup;
-	}
-
-	if (!util_split_string(keyopt_dict, keyopt_exp)) {
-		goto cleanup;
-	}
-
 	if ((certificate = mycms_certificate_new(context)) == NULL) {
 		goto cleanup;
 	}
@@ -220,7 +209,7 @@ _cmd_sign(
 		goto cleanup;
 	}
 
-	if (!mycms_sign(mycms, certificate, digests, keyopt_dict, cms_in, cms_out, data_in)) {
+	if (!mycms_sign(mycms, certificate, digests, keyopts, cms_in, cms_out, data_in)) {
 		goto cleanup;
 	}
 
@@ -230,6 +219,9 @@ cleanup:
 
 	mycms_list_str_free(system, digests);
 	digests = NULL;
+
+	mycms_list_str_free(system, keyopts);
+	keyopts = NULL;
 
 	mycms_io_destruct(cms_in);
 	cms_in = NULL;
@@ -248,9 +240,6 @@ cleanup:
 
 	mycms_dict_destruct(pass_dict);
 	pass_dict = NULL;
-
-	mycms_dict_destruct(keyopt_dict);
-	keyopt_dict = NULL;
 
 	mycms_destruct(mycms);
 	mycms = NULL;

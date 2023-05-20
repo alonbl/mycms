@@ -279,7 +279,7 @@ test_keyopt() {
 			--cms-out="${CMS}" \
 			--data-in="${DATA}" \
 			--signer-cert="file:cert=${builddir}/gen/test1.crt:key=${builddir}/gen/test1.key" \
-			--keyopt="rsa_padding_mode=${padding}" \
+			--keyopt="rsa_padding_mode:${padding}" \
 			|| die "keyopt.sign.test1"
 
 		[ 1 -eq $("${OPENSSL}" asn1parse -in "${CMS}" -inform DER | grep "${padding_str}" | wc -l) ] || die "Expected '${padding_str}' for '${padding}'"

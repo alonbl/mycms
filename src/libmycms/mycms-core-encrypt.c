@@ -19,7 +19,7 @@ __add_recipients(
 	const mycms mycms,
 	CMS_ContentInfo *cms,
 	const mycms_list_blob to,
-	const mycms_dict keyopt,
+	const mycms_list_str keyopts,
 	int flags
 ) {
 	STACK_OF(CMS_RecipientInfo) *ret = NULL;
@@ -41,7 +41,7 @@ __add_recipients(
 	for (t = to;t != NULL;t = t->next) {
 		CMS_RecipientInfo *ri;
 		EVP_PKEY_CTX *ctx;
-		mycms_list_dict_entry opt;
+		mycms_list_str keyopt;
 		unsigned const char * p;
 
 		p = t->blob.data;
@@ -81,8 +81,26 @@ __add_recipients(
 			goto cleanup;
 		}
 
-		for (opt = mycms_dict_entries(keyopt); opt != NULL; opt = opt->next) {
-			if (!EVP_PKEY_CTX_ctrl_str(ctx, opt->entry.k, opt->entry.v)) {
+		for (keyopt = keyopts; keyopt != NULL; keyopt = keyopt->next) {
+			char opt[1024];
+			char *p;
+			strncpy(opt, keyopt->str, sizeof(opt));
+			opt[sizeof(opt) - 1] = '\0';
+			if ((p = strchr(opt, ':')) == NULL) {
+				_mycms_error_entry_dispatch(_mycms_error_entry_base(
+					_mycms_error_capture(mycms_context_get_error(mycms_get_context(mycms))),
+					"core.sign.keyopt",
+					MYCMS_ERROR_CODE_ARGS,
+					true,
+					"Invalid keyopts '%s' no separator",
+					opt
+				));
+				goto cleanup;
+			}
+			*p = '\0';
+			p++;
+
+			if (!EVP_PKEY_CTX_ctrl_str(ctx, opt, p)) {
 				_mycms_error_entry_dispatch(_error_entry_openssl_status(_mycms_error_entry_base(
 					_mycms_error_capture(mycms_context_get_error(mycms_get_context(mycms))),
 					"core.encrypt.add.prms",
@@ -115,7 +133,7 @@ mycms_encrypt(
 	const mycms mycms,
 	const char * const cipher_name,
 	const mycms_list_blob to,
-	const mycms_dict keyopt,
+	const mycms_list_str keyopts,
 	const mycms_io cms_out,
 	const mycms_io data_pt,
 	const mycms_io data_ct
@@ -208,7 +226,7 @@ mycms_encrypt(
 		goto cleanup;
 	}
 
-	if ((added = __add_recipients(mycms, cms, to, keyopt, flags)) == NULL) {
+	if ((added = __add_recipients(mycms, cms, to, keyopts, flags)) == NULL) {
 		goto cleanup;
 	}
 
@@ -252,7 +270,7 @@ mycms_encrypt_add(
 	const mycms mycms,
 	const mycms_certificate certificate,
 	const mycms_list_blob to,
-	const mycms_dict keyopt,
+	const mycms_list_str keyopts,
 	const mycms_io cms_in,
 	const mycms_io cms_out
 ) {
@@ -332,7 +350,7 @@ mycms_encrypt_add(
 		goto cleanup;
 	}
 
-	if ((added = __add_recipients(mycms, cms, to, keyopt, flags)) == NULL) {
+	if ((added = __add_recipients(mycms, cms, to, keyopts, flags)) == NULL) {
 		goto cleanup;
 	}
 

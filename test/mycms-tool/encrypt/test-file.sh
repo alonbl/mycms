@@ -221,7 +221,7 @@ test_keyopt() {
 			--data-ct="${CT}" \
 			--to="${builddir}/gen/test1.crt" \
 			--to="${builddir}/gen/test2.crt" \
-			--keyopt="rsa_padding_mode=${padding}" \
+			--keyopt="rsa_padding_mode:${padding}" \
 			|| die "add-recip.encrypt"
 
 		echo "Adding to test3 and test4 using test1"
@@ -231,7 +231,7 @@ test_keyopt() {
 			--recip-cert="file:cert=${builddir}/gen/test1.crt:key=${builddir}/gen/test1.key" \
 			--to="${builddir}/gen/test3.crt" \
 			--to="${builddir}/gen/test4.crt" \
-			--keyopt="rsa_padding_mode=${padding}" \
+			--keyopt="rsa_padding_mode:${padding}" \
 			|| die "add-recip.encrypt"
 
 		[ 4 -eq $("${OPENSSL}" asn1parse -in "${CMS2}" -inform DER | grep "${padding_str}" | wc -l) ] || die "Expected '${padding_str}' for '${padding}'"

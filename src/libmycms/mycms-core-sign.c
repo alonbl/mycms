@@ -17,7 +17,7 @@ mycms_sign(
 	const mycms mycms,
 	const mycms_certificate certificate,
 	const mycms_list_str digests,
-	const mycms_dict keyopt,
+	const mycms_list_str keyopts,
 	const mycms_io cms_in,
 	const mycms_io cms_out,
 	const mycms_io data_in
@@ -75,7 +75,6 @@ mycms_sign(
 	for (digest = digests;digest != NULL; digest = digest->next) {
 		const EVP_MD *md = NULL;
 		CMS_SignerInfo *signer = NULL;
-		mycms_list_dict_entry opt;
 
 		if ((md = EVP_get_digestbyname(digest->str)) == NULL) {
 			_mycms_error_entry_dispatch(_mycms_error_entry_base(
@@ -94,7 +93,7 @@ mycms_sign(
 			_mycms_certificate_get_X509(certificate),
 			_mycms_certificate_get_EVP_PKEY(certificate),
 			md,
-			flags | (mycms_dict_entries(keyopt) == NULL ? 0 : CMS_KEY_PARAM) /* Does not work for 2nd sign, see https://github.com/openssl/openssl/issues/14257 */
+			flags | (keyopts == NULL ? 0 : CMS_KEY_PARAM) /* Does not work for 2nd sign, see https://github.com/openssl/openssl/issues/14257 */
 		)) == NULL) {
 			_mycms_error_entry_dispatch(_error_entry_openssl_status(_mycms_error_entry_base(
 				_mycms_error_capture(mycms_context_get_error(mycms_get_context(mycms))),
@@ -106,7 +105,9 @@ mycms_sign(
 			goto cleanup;
 		}
 
-		if (mycms_dict_entries(keyopt) != NULL) { /* TODO: remove when openssl bug fixed */
+		if (keyopts != NULL) { /* TODO: remove when openssl bug fixed */
+			mycms_list_str keyopt;
+
 			if ((ctx = CMS_SignerInfo_get0_pkey_ctx(signer)) == NULL) {
 				_mycms_error_entry_dispatch(_error_entry_openssl_status(_mycms_error_entry_base(
 					_mycms_error_capture(mycms_context_get_error(mycms_get_context(mycms))),
@@ -118,11 +119,29 @@ mycms_sign(
 				goto cleanup;
 			}
 
-			for (opt = mycms_dict_entries(keyopt); opt != NULL; opt = opt->next) {
-				if (!EVP_PKEY_CTX_ctrl_str(ctx, opt->entry.k, opt->entry.v)) {
+			for (keyopt = keyopts;keyopt != NULL; keyopt = keyopt->next) {
+				char opt[1024];
+				char *p;
+				strncpy(opt, keyopt->str, sizeof(opt));
+				opt[sizeof(opt) - 1] = '\0';
+				if ((p = strchr(opt, ':')) == NULL) {
+					_mycms_error_entry_dispatch(_mycms_error_entry_base(
+						_mycms_error_capture(mycms_context_get_error(mycms_get_context(mycms))),
+						"core.sign.keyopt",
+						MYCMS_ERROR_CODE_ARGS,
+						true,
+						"Invalid keyopts '%s' no separator",
+						opt
+					));
+					goto cleanup;
+				}
+				*p = '\0';
+				p++;
+
+				if (!EVP_PKEY_CTX_ctrl_str(ctx, opt, p)) {
 					_mycms_error_entry_dispatch(_error_entry_openssl_status(_mycms_error_entry_base(
 						_mycms_error_capture(mycms_context_get_error(mycms_get_context(mycms))),
-						"core.sign.add.prm",
+						"core.sign.add.keyopt",
 						MYCMS_ERROR_CODE_CRYPTO,
 						true,
 						"Failed to set signer key parameters"
