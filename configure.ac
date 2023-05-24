@@ -376,7 +376,7 @@ AC_CONFIG_FILES([
 	test/ca/Makefile
 	test/ca/rootca.vars
 	test/ca/subca.vars
-	test/ca/vars
+	test/ca/ca-vars
 	test/mycms-tool/Makefile
 	test/mycms-tool/encrypt/Makefile
 	test/mycms-tool/sign/Makefile

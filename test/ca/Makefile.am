@@ -26,25 +26,27 @@ dist_noinst_DATA = \
 built.rootca:	\
 		oids.cnf \
 		$(NULL)
-	rm -f built.rootca init-pki
-	$(EASYRSA) --vars="./rootca.vars" init-pki
+	rm -rf built.rootca rootca.pki
+	$(EASYRSA) --pki-dir=rootca.pki init-pki
+	cp rootca.vars rootca.pki/vars
 	touch rootca.pki/.rnd
-	$(EASYRSA) --vars="./rootca.vars" build-ca nopass
+	$(EASYRSA) --pki-dir=rootca.pki build-ca nopass
 	touch built.rootca
 
 built.subca:	\
 		built.rootca \
 		oids.cnf \
 		$(NULL)
-	rm -f built.subca subca.pki
-	$(EASYRSA) --vars="./subca.vars" init-pki
+	rm -rf built.subca subca.pki
+	$(EASYRSA) --pki-dir=subca.pki init-pki
+	cp subca.vars subca.pki/vars
 	touch subca.pki/.rnd
 
 	cat "$(srcdir)/oids.cnf" >> subca.pki/openssl-easyrsa.cnf
 	sed -i '1i oid_section = oids' subca.pki/openssl-easyrsa.cnf
 
-	$(EASYRSA) --vars="./subca.vars" build-ca nopass subca
-	$(EASYRSA) --vars="./rootca.vars" import-req ./subca.pki/reqs/ca.req subca
-	$(EASYRSA) --vars="./rootca.vars" sign-req ca subca
+	$(EASYRSA) --pki-dir=subca.pki build-ca nopass subca
+	$(EASYRSA) --pki-dir=rootca.pki import-req ./subca.pki/reqs/ca.req subca
+	$(EASYRSA) --pki-dir=rootca.pki sign-req ca subca
 	cp ./rootca.pki/issued/subca.crt ./subca.pki/ca.crt
 	touch built.subca
