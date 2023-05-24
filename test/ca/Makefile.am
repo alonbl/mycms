@@ -27,7 +27,7 @@ built.rootca:	\
 		oids.cnf \
 		$(NULL)
 	rm -f built.rootca init-pki
-	$(EASYRSA) --vars="./rootca.vars" init-pki
+	$(EASYRSA) --pki-dir=rootca.pki init-pki
 	touch rootca.pki/.rnd
 	$(EASYRSA) --vars="./rootca.vars" build-ca nopass
 	touch built.rootca
@@ -37,7 +37,7 @@ built.subca:	\
 		oids.cnf \
 		$(NULL)
 	rm -f built.subca subca.pki
-	$(EASYRSA) --vars="./subca.vars" init-pki
+	$(EASYRSA) --pki-dir=subca.pki init-pki
 	touch subca.pki/.rnd
 
 	cat "$(srcdir)/oids.cnf" >> subca.pki/openssl-easyrsa.cnf
