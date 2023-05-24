@@ -369,7 +369,7 @@ mycms_encrypt_add(
 		}
 	}
 
-	if (i2d_CMS_bio(_mycms_io_get_BIO(cms_out), cms)  <= 0) {
+	if (i2d_CMS_bio_stream(_mycms_io_get_BIO(cms_out), cms, NULL, flags)  <= 0) {
 		_mycms_error_entry_dispatch(_error_entry_openssl_status(_mycms_error_entry_base(
 			_mycms_error_capture(mycms_context_get_error(mycms_get_context(mycms))),
 			"core.encrypt-add.out",
