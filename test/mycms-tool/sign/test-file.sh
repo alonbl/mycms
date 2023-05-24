@@ -310,7 +310,7 @@ __EOF__
 			--cms-out="${CMS}" \
 			--data-in="${DATA}" \
 			--signer-cert="file:cert=${builddir}/gen/test1.crt:key=${builddir}/gen/test1.key" \
-			--keyopt="rsa_padding_mode=${padding}" \
+			--keyopt="rsa_padding_mode:${padding}" \
 			|| die "keyopt.sign.test1"
 
 		echo "Signing by test2"
@@ -318,7 +318,7 @@ __EOF__
 			--cms-in="${CMS}" \
 			--cms-out="${CMS2}" \
 			--signer-cert="file:cert=${builddir}/gen/test2.crt:key=${builddir}/gen/test2.key" \
-			--keyopt="rsa_padding_mode=${padding}" \
+			--keyopt="rsa_padding_mode:${padding}" \
 			|| die "sanity.sign.test2"
 
 		[ 2 -eq $("${OPENSSL}" asn1parse -in "${CMS2}" -inform DER | grep "${padding_str}" | wc -l) ] || die "Expected '${padding_str}' for '${padding}'"
