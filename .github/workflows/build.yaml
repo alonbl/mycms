@@ -39,16 +39,34 @@ jobs:
           branch: OpenSSL_1_1_1-stable
           cross-compile-prefix: x86_64-w64-mingw32-
           target: mingw64
-        - version: "3.0"
+        - version: "3.0.7"
           os: linux
           dependencies:
           branch: openssl-3.0.7
           cross-compile-prefix:
           target:
         - version: "3.0"
+          os: linux
+          dependencies:
+          branch: openssl-3.0
+          cross-compile-prefix:
+          target:
+        - version: "3.0"
           os: windows
           dependencies: mingw-w64
-          branch: openssl-3.0.7
+          branch: openssl-3.0
+          cross-compile-prefix: x86_64-w64-mingw32-
+          target: mingw64
+        - version: "3.1"
+          os: linux
+          dependencies:
+          branch: openssl-3.1
+          cross-compile-prefix:
+          target:
+        - version: "3.1"
+          os: windows
+          dependencies: mingw-w64
+          branch: openssl-3.1
           cross-compile-prefix: x86_64-w64-mingw32-
           target: mingw64
     env:
@@ -167,10 +185,14 @@ jobs:
         - 1
         crypto:
         - openssl-1.1.1
+        - openssl-3.0.7
         - openssl-3.0
+        - openssl-3.1
         exclude:
         - os: windows
           valgrind: 1
+        - os: windows
+          crypto: openssl-3.0.7
 
     env:
       crypto_name: ${{ matrix.crypto }}-binaries-${{ matrix.os }}
@@ -285,6 +307,7 @@ jobs:
         crypto:
         - openssl-1.1.1
         - openssl-3.0
+        - openssl-3.1
     defaults:
       run:
         shell: wsl-bash {0}
@@ -425,6 +448,7 @@ jobs:
         crypto:
         - openssl-1.1.1
         - openssl-3.0
+        - openssl-3.1
 
     steps:
     - name: dependencies
@@ -503,6 +527,7 @@ jobs:
         crypto:
         - openssl-1.1.1
         - openssl-3.0
+        - openssl-3.1
 
     steps:
     - name: mycms-misc-download
