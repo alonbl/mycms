@@ -369,17 +369,6 @@ mycms_encrypt_add(
 		}
 	}
 
-	if (!CMS_final(cms, NULL, NULL, flags)) {
-		_mycms_error_entry_dispatch(_error_entry_openssl_status(_mycms_error_entry_base(
-			_mycms_error_capture(mycms_context_get_error(mycms_get_context(mycms))),
-			"core.encrypt-add.encrypt",
-			MYCMS_ERROR_CODE_CRYPTO,
-			true,
-			"CMS encryption final failed"
-		)));
-		goto cleanup;
-	}
-
 	if (i2d_CMS_bio(_mycms_io_get_BIO(cms_out), cms)  <= 0) {
 		_mycms_error_entry_dispatch(_error_entry_openssl_status(_mycms_error_entry_base(
 			_mycms_error_capture(mycms_context_get_error(mycms_get_context(mycms))),
@@ -395,6 +384,10 @@ mycms_encrypt_add(
 
 cleanup:
 
+/* https://github.com/openssl/openssl/issues/21026 */
+#if (0x030000000l <= OPENSSL_VERSION_NUMBER && OPENSSL_VERSION_NUMBER <= 0x030000090l) || (0x030100000l <= OPENSSL_VERSION_NUMBER && OPENSSL_VERSION_NUMBER <= 0x030100010l)
+	BIO_free_all(CMS_dataInit(cms, NULL));
+#endif
 	sk_CMS_RecipientInfo_free(added);
 	added = NULL;
 
