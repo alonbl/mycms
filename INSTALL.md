@@ -87,7 +87,7 @@ $ sudo apt install mingw-w64 nsis
 #### Build
 
 ```
-$ set MYCMS_PREFIX=/tmp/mycms-prefix
+$ MYCMS_PREFIX=/tmp/mycms-prefix
 ```
 
 #### OpenSSL Build
