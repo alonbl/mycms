@@ -75,7 +75,7 @@ jobs:
     steps:
     - name: cache
       id: cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ${{ env.openssl_name }}
         key: ${{ env.openssl_name }}-${{ env.caches_version }}
@@ -88,7 +88,7 @@ jobs:
             ${{ matrix.dependencies }}
     - name: checkout
       if: steps.cache.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: openssl/openssl
         ref: ${{ matrix.branch }}
@@ -126,7 +126,7 @@ jobs:
                 pkg-config \
                 softhsm
     - name: mycms-checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         path: mycms
     - name: mycms-prepare
@@ -145,22 +145,22 @@ jobs:
       run: |
         tar -C mycms -czf mycms-packaging.tar.gz --transform 's#^[^/]*#mycms-packaging#' packaging
     - name: mycms-dist-upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: mycms-dist
         path: |
           mycms-build/distcheck/mycms-*.bz2
     - name: mycms-misc-upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: mycms-misc
         path: |
           mycms-packaging.tar.gz
     - name: logs-upload
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: logs
+        name: logs.${{ github.jobs[github.job].name }}
         path: |
           **/*.log
 
@@ -240,7 +240,7 @@ jobs:
         env | grep '^MYCMS_' >> "${GITHUB_ENV}"
         env | grep '.*_CFLAGS\|.*_LIBS' >> "${GITHUB_ENV}" || true
     - name: ${{ env.crypto_name }} cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ${{ env.crypto_name }}
         key: ${{ env.crypto_name }}-${{ env.caches_version }}
@@ -253,7 +253,7 @@ jobs:
             pkg-config \
             ${MYCMS_DEPS}
     - name: mycms-dist-download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: mycms-dist
         path: dist
@@ -281,16 +281,16 @@ jobs:
         fi
     - name: binaries-upload
       if: ${{ env.MYCMS_PACKAGE == 1 }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.mycms_name }}
         path: |
           ${{ env.mycms_name }}/usr/local
     - name: logs-upload
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: logs
+        name: logs.${{ matrix.os }}-${{ matrix.crypto }}-${{ matrix.valgrind }}
         path: |
           **/*.log
 
@@ -322,12 +322,12 @@ jobs:
       shell: cmd
       run: echo C:\Program Files\Git\usr\bin>>"%GITHUB_PATH%"
     - name: ${{ env.crypto_name }} cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ${{ env.crypto_name }}
         key: ${{ env.crypto_name }}-${{ env.caches_version }}
     - name: wsl-setup
-      uses: Vampire/setup-wsl@v2
+      uses: Vampire/setup-wsl@v3
       with:
         distribution: Ubuntu-20.04
         additional-packages:
@@ -340,7 +340,7 @@ jobs:
           enabled=true
           appendWindowsPath=false
     - name: mycms-dist-download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: mycms-dist
         path: dist
@@ -375,9 +375,9 @@ jobs:
         make check
     - name: logs-upload
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: logs
+        name: logs.${{ github.jobs[github.job].name }}
         path: |
           **/*.log
 
@@ -405,7 +405,7 @@ jobs:
                 devscripts \
                 equivs
     - name: mycms-dist-download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: mycms-dist
         path: dist
@@ -432,7 +432,7 @@ jobs:
         cd mycms-repo
         dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
     - name: mycms-deb-repo-upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: mycms-deb-repo
         path: |
@@ -457,12 +457,12 @@ jobs:
         sudo apt install \
             nsis
     - name: mycms-misc-download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: mycms-binaries-windows-${{ matrix.crypto }}
         path: mycms-binaries-windows-${{ matrix.crypto }}
     - name: mycms-misc-download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: mycms-misc
         path: misc
@@ -475,7 +475,7 @@ jobs:
             EXTRA_NAME="$(echo "${{ matrix.crypto }}" | sed -n -e 's/.*\(-.*\)/\1/p')" \
             mycms-packaging/windows-nsis/build
     - name: installers-upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: mycms-installers-windows-${{ matrix.crypto }}
         path: |
@@ -499,7 +499,7 @@ jobs:
 
     steps:
     - name: mycms-deb-repo-download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: mycms-deb-repo
         path: mycms-repo
@@ -531,7 +531,7 @@ jobs:
 
     steps:
     - name: mycms-misc-download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: mycms-installers-windows-${{ matrix.crypto }}
     - name: test
