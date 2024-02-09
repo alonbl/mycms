@@ -116,6 +116,34 @@ test_sanity() {
 	return 0
 }
 
+test_sanity_private() {
+	local PREFIX="${MYTMP}/sanity"
+	local CMS="${PREFIX}-cms"
+	local CT="${PREFIX}-ct"
+	local OUTPT="${PREFIX}-pt"
+
+	echo "Encrypting to test1"
+	doval "${MYCMS_TOOL}" encrypt \
+		--cms-out="${CMS}" \
+		--data-pt="${PT}" \
+		--data-ct="${CT}" \
+		--to="${builddir}/gen/test1.crt" \
+		|| die "sanity.encrypt"
+	echo "Decrypting by test1"
+	doval "${MYCMS_TOOL}" decrypt \
+		--cms-in="${CMS}" \
+		--recip-cert="pkcs11:module=${SOFTHSM2_MODULE}:token-label=token1:cert-label=test1:cert-is-private=1" \
+		--recip-cert-pass="token=pass=secret" \
+		--data-pt="${OUTPT}" \
+		--data-ct="${CT}" \
+		|| die "sanity.decrypt"
+
+	cmp -s "${PT}" "${CT}" && die "sanity.cmp.ct"
+	cmp -s "${PT}" "${OUTPT}" || die "sanity.cmp"
+
+	return 0
+}
+
 test_add_recepients() {
 	local PREFIX="${MYTMP}/addrecip"
 	local CMS1="${PREFIX}-cms1"
@@ -181,7 +209,7 @@ export SOFTHSM2_CONF="${MYTMP}/softhsm2.conf"
 
 prepare_token
 
-TESTS="${TESTS:-test_sanity test_add_recepients}"
+TESTS="${TESTS:-test_sanity test_sanity_private test_add_recepients}"
 
 for test in $TESTS; do
 	echo "------------------------"

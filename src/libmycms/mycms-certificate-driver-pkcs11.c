@@ -46,7 +46,6 @@ struct __mycms_certificate_driver_pkcs11_s {
 	mycms_blob id;
 
 	bool assume_loggedin;
-	bool key_attributes_valid;
 };
 typedef struct __mycms_certificate_driver_pkcs11_s *__mycms_certificate_driver_pkcs11;
 
@@ -734,6 +733,11 @@ __open_slot(
 		goto cleanup;
 	}
 
+	if (certificate_pkcs11->session_handle != __INVALID_SESSION_HANDLE) {
+		certificate_pkcs11->p->f->C_CloseSession(certificate_pkcs11->session_handle);
+		certificate_pkcs11->session_handle = __INVALID_SESSION_HANDLE;
+	}
+
 	if (
 		(rv = certificate_pkcs11->p->f->C_GetSlotList (
 			CK_TRUE,
@@ -844,15 +848,18 @@ cleanup:
 
 static
 bool
-__open_private_key(
-	const mycms_certificate certificate
+__open_object(
+	const mycms_certificate certificate,
+	const bool private_object,
+	const CK_ATTRIBUTE * const filter,
+	const CK_ULONG filter_size,
+	CK_OBJECT_HANDLE * const handle,
+	CK_ATTRIBUTE * attrs,
+	const CK_ULONG attrs_size
 ) {
 	mycms_system system = NULL;
 	__mycms_certificate_driver_pkcs11 certificate_pkcs11 = NULL;
 
-	CK_ATTRIBUTE key_attrs[] = {
-		{CKA_ALWAYS_AUTHENTICATE, NULL, 0}
-	};
 	CK_RV rv = CKR_FUNCTION_FAILED;
 
 	int retry;
@@ -866,9 +873,16 @@ __open_private_key(
 		goto cleanup;
 	}
 
+	if (certificate_pkcs11->session_handle == __INVALID_SESSION_HANDLE) {
+		if (!__open_slot(certificate)) {
+			goto cleanup;
+		}
+	}
+
 	retry = 3;
 	while(retry--) {
-		if (!certificate_pkcs11->assume_loggedin && certificate_pkcs11->login_required) {
+
+		if (private_object && !certificate_pkcs11->assume_loggedin && certificate_pkcs11->login_required) {
 			if ((rv = __common_login(certificate, CKU_USER, "token")) != CKR_OK) {
 				switch (rv) {
 					default:
@@ -890,55 +904,33 @@ __open_private_key(
 			certificate_pkcs11->assume_loggedin = true;
 		}
 
-		if (!certificate_pkcs11->key_attributes_valid) {
-			CK_OBJECT_CLASS c = CKO_PRIVATE_KEY;
-			const CK_ATTRIBUTE filter[] = {
-				{CKA_CLASS, &c, sizeof(c)},
-				{CKA_ID, certificate_pkcs11->id.data, certificate_pkcs11->id.size}
-			};
-
-			if ((rv = __find_object(
-				certificate_pkcs11,
-				filter,
-				sizeof(filter) / sizeof(*filter),
-				&certificate_pkcs11->key_handle
-			)) != CKR_OK) {
-				switch (rv) {
-					default:
-						_mycms_error_entry_dispatch(__error_entry_pkcs11_rv(rv, _mycms_error_entry_base(
-							_mycms_error_capture(mycms_context_get_error(mycms_certificate_get_context(certificate))),
-							"certificate.driver.pkcs11.private",
-							MYCMS_ERROR_CODE_CRYPTO,
-							false,
-							"Failed to find private key '%s'",
-							certificate_pkcs11->display
-						)));
-						goto cleanup;
-					case CKR_SESSION_CLOSED:
-					case CKR_SESSION_HANDLE_INVALID:
-					case CKR_USER_NOT_LOGGED_IN:
-						goto retry;
-				}
-				goto cleanup;
+		if ((rv = __find_object(
+			certificate_pkcs11,
+			filter,
+			filter_size,
+			handle
+		)) != CKR_OK) {
+			switch (rv) {
+				default:
+					_mycms_error_entry_dispatch(__error_entry_pkcs11_rv(rv, _mycms_error_entry_base(
+						_mycms_error_capture(mycms_context_get_error(mycms_certificate_get_context(certificate))),
+						"certificate.driver.pkcs11.private",
+						MYCMS_ERROR_CODE_CRYPTO,
+						false,
+						"Failed to find object '%s'",
+						certificate_pkcs11->display
+					)));
+					goto cleanup;
+				case CKR_SESSION_CLOSED:
+				case CKR_SESSION_HANDLE_INVALID:
+				case CKR_USER_NOT_LOGGED_IN:
+					goto retry;
 			}
+			goto cleanup;
+		}
 
-			if (certificate_pkcs11->key_handle == __INVALID_OBJECT_HANDLE) {
-				goto cleanup;
-			}
-
-			if (__get_object_attributes(
-				system,
-				certificate_pkcs11,
-				certificate_pkcs11->key_handle,
-				key_attrs,
-				sizeof(key_attrs) / sizeof(*key_attrs)
-			) == CKR_OK) {
-				if (key_attrs[0].ulValueLen != CK_UNAVAILABLE_INFORMATION) {
-					certificate_pkcs11->always_authenticate = *(CK_BBOOL *)key_attrs[0].pValue != CK_FALSE;
-				}
-			}
-
-			certificate_pkcs11->key_attributes_valid = true;
+		if (*handle == __INVALID_OBJECT_HANDLE) {
+			goto cleanup;
 		}
 
 		break;
@@ -951,14 +943,158 @@ __open_private_key(
 		}
 	}
 
+	if (__get_object_attributes(
+		system,
+		certificate_pkcs11,
+		*handle,
+		attrs,
+		attrs_size
+	) != CKR_OK) {
+		goto cleanup;
+	}
+
+	ret = true;
+
+cleanup:
+
+	return ret;
+}
+
+static
+bool
+__open_certificate(
+	const mycms_certificate certificate,
+	const char * const label,
+	const bool private
+) {
+	mycms_system system = NULL;
+	__mycms_certificate_driver_pkcs11 certificate_pkcs11 = NULL;
+	bool ret = false;
+
+	if ((system = __get_system(certificate)) == NULL) {
+		goto cleanup;
+	}
+
+	if ((certificate_pkcs11 = (__mycms_certificate_driver_pkcs11)mycms_certificate_get_driverdata(certificate)) == NULL) {
+		goto cleanup;
+	}
+
+	CK_OBJECT_CLASS c = CKO_CERTIFICATE;
+	const CK_ATTRIBUTE filter[] = {
+		{CKA_CLASS, &c, sizeof(c)},
+		{CKA_LABEL, (char *)label, strlen(label)}
+	};
+	const int CERT_ATTRS_ID = 0;
+	const int CERT_ATTRS_VALUE = 1;
+	CK_ATTRIBUTE attrs[] = {
+		{CKA_ID, NULL, 0},
+		{CKA_VALUE, NULL, 0}
+	};
+	CK_OBJECT_HANDLE h = __INVALID_OBJECT_HANDLE;
+
+	if (
+		!__open_object(
+			certificate,
+			private,
+			filter,
+			sizeof(filter) / sizeof(*filter),
+			&h,
+			attrs,
+			sizeof(attrs) / sizeof(*attrs)
+		)
+	) {
+		goto cleanup;
+	}
+
+	if (attrs[CERT_ATTRS_ID].ulValueLen == CK_UNAVAILABLE_INFORMATION) {
+		goto cleanup;
+	}
+
+	if (attrs[CERT_ATTRS_VALUE].ulValueLen == CK_UNAVAILABLE_INFORMATION) {
+		goto cleanup;
+	}
+
+	if (attrs[CERT_ATTRS_ID].ulValueLen < 1) {
+		goto cleanup;
+	}
+
+	certificate_pkcs11->id.size = attrs[CERT_ATTRS_ID].ulValueLen;
+	if ((certificate_pkcs11->id.data = mycms_system_zalloc(system, "certificate_pkcs11.id", certificate_pkcs11->id.size)) == NULL) {
+		goto cleanup;
+	}
+	memcpy(certificate_pkcs11->id.data, attrs[CERT_ATTRS_ID].pValue, certificate_pkcs11->id.size);
+	mycms_blob blob;
+	blob.data = attrs[CERT_ATTRS_VALUE].pValue;
+	blob.size = attrs[CERT_ATTRS_VALUE].ulValueLen;
+	if (!mycms_certificate_apply_certificate(certificate, &blob)) {
+		goto cleanup;
+	}
+
 	ret = true;
 
 cleanup:
 
 	__free_attributes(
 		system,
-		key_attrs,
-		sizeof(key_attrs) / sizeof(*key_attrs)
+		attrs,
+		sizeof(attrs) / sizeof(*attrs)
+	);
+
+	return ret;
+}
+
+static
+bool
+__open_private_key(
+	const mycms_certificate certificate
+) {
+	mycms_system system = NULL;
+	__mycms_certificate_driver_pkcs11 certificate_pkcs11 = NULL;
+	bool ret = false;
+
+	if ((system = __get_system(certificate)) == NULL) {
+		goto cleanup;
+	}
+
+	if ((certificate_pkcs11 = (__mycms_certificate_driver_pkcs11)mycms_certificate_get_driverdata(certificate)) == NULL) {
+		goto cleanup;
+	}
+
+	CK_OBJECT_CLASS c = CKO_PRIVATE_KEY;
+	const CK_ATTRIBUTE filter[] = {
+		{CKA_CLASS, &c, sizeof(c)},
+		{CKA_ID, certificate_pkcs11->id.data, certificate_pkcs11->id.size}
+	};
+	CK_ATTRIBUTE attrs[] = {
+		{CKA_ALWAYS_AUTHENTICATE, NULL, 0}
+	};
+
+	if (
+		!__open_object(
+			certificate,
+			true,
+			filter,
+			sizeof(filter) / sizeof(*filter),
+			&certificate_pkcs11->key_handle,
+			attrs,
+			sizeof(attrs) / sizeof(*attrs)
+		)
+	) {
+		goto cleanup;
+	}
+
+	if (attrs[0].ulValueLen != CK_UNAVAILABLE_INFORMATION) {
+		certificate_pkcs11->always_authenticate = *(CK_BBOOL *)attrs[0].pValue != CK_FALSE;
+	}
+
+	ret = true;
+
+cleanup:
+
+	__free_attributes(
+		system,
+		attrs,
+		sizeof(attrs) / sizeof(*attrs)
 	);
 
 	return ret;
@@ -1217,15 +1353,10 @@ __driver_load(
 	const char *module = NULL;
 	const char *token_label = NULL;
 	const char *cert_label = NULL;
+	const char *cert_is_private_str = NULL;
+	bool cert_is_private;
 
 	bool ret = false;
-
-	const int CERT_ATTRS_ID = 0;
-	const int CERT_ATTRS_VALUE = 1;
-	CK_ATTRIBUTE cert_attrs[] = {
-		{CKA_ID, NULL, 0},
-		{CKA_VALUE, NULL, 0}
-	};
 
 	if (certificate == NULL) {
 		return false;
@@ -1286,16 +1417,23 @@ __driver_load(
 		goto cleanup;
 	}
 
+	if ((cert_is_private_str = mycms_dict_entry_get(parameters, "cert-is-private", NULL)) == NULL) {
+		cert_is_private = false;
+	} else {
+		cert_is_private = atoi(cert_is_private_str) != 0;
+	}
+
 	if ((certificate_pkcs11 = mycms_system_zalloc(system, "certificate_pkcs11", sizeof(*certificate_pkcs11))) == NULL) {
 		goto cleanup;
 	}
 	snprintf(
 		certificate_pkcs11->display,
 		sizeof(certificate_pkcs11->display),
-		"PKCS#11: module='%s', token='%s', cert='%s'",
+		"PKCS#11: module='%s', token='%s', cert='%s', cert_is_private=%d",
 		module,
 		token_label,
-		cert_label
+		cert_label,
+		cert_is_private
 	);
 	certificate_pkcs11->certificate = certificate;
 	certificate_pkcs11->token_label = mycms_system_strdup(system, "certificate_pkcs11.token_label", token_label);
@@ -1310,83 +1448,27 @@ __driver_load(
 		goto cleanup;
 	}
 
-	if (!__open_slot(certificate)) {
+	if (
+		!__open_certificate(
+			certificate,
+			cert_label,
+			cert_is_private
+		)
+	) {
+		_mycms_error_entry_dispatch(__error_entry_pkcs11_rv(rv, _mycms_error_entry_base(
+			_mycms_error_capture(mycms_context_get_error(mycms_certificate_get_context(certificate))),
+			"certificate.driver.pkcs11.load.objects",
+			MYCMS_ERROR_CODE_CRYPTO,
+			true,
+			"Failed to find '%s'",
+			certificate_pkcs11->display
+		)));
 		goto cleanup;
-	}
-
-	{
-		CK_OBJECT_CLASS c = CKO_CERTIFICATE;
-		const CK_ATTRIBUTE filter[] = {
-			{CKA_CLASS, &c, sizeof(c)},
-			{CKA_LABEL, (char *)cert_label, strlen(cert_label)}
-		};
-		mycms_blob blob;
-		CK_OBJECT_HANDLE o;
-
-		if ((rv = __find_object(
-			certificate_pkcs11,
-			filter,
-			sizeof(filter) / sizeof(*filter),
-			&o
-		)) != CKR_OK) {
-			_mycms_error_entry_dispatch(__error_entry_pkcs11_rv(rv, _mycms_error_entry_base(
-				_mycms_error_capture(mycms_context_get_error(mycms_certificate_get_context(certificate))),
-				"certificate.driver.pkcs11.load.objects",
-				MYCMS_ERROR_CODE_CRYPTO,
-				true,
-				"Failed to find '%s'",
-				certificate_pkcs11->display
-			)));
-			goto cleanup;
-		}
-
-		if (o == __INVALID_OBJECT_HANDLE) {
-			goto cleanup;
-		}
-
-		if (__get_object_attributes(
-			system,
-			certificate_pkcs11,
-			o,
-			cert_attrs,
-			sizeof(cert_attrs) / sizeof(*cert_attrs)
-		) != CKR_OK) {
-			goto cleanup;
-		}
-
-		if (cert_attrs[CERT_ATTRS_ID].ulValueLen == CK_UNAVAILABLE_INFORMATION) {
-			goto cleanup;
-		}
-
-		if (cert_attrs[CERT_ATTRS_VALUE].ulValueLen == CK_UNAVAILABLE_INFORMATION) {
-			goto cleanup;
-		}
-
-		if (cert_attrs[CERT_ATTRS_ID].ulValueLen < 1) {
-			goto cleanup;
-		}
-
-		certificate_pkcs11->id.size = cert_attrs[CERT_ATTRS_ID].ulValueLen;
-		if ((certificate_pkcs11->id.data = mycms_system_zalloc(system, "certificate_pkcs11.id", certificate_pkcs11->id.size)) == NULL) {
-			goto cleanup;
-		}
-		memcpy(certificate_pkcs11->id.data, cert_attrs[CERT_ATTRS_ID].pValue, certificate_pkcs11->id.size);
-		blob.data = cert_attrs[CERT_ATTRS_VALUE].pValue;
-		blob.size = cert_attrs[CERT_ATTRS_VALUE].ulValueLen;
-		if (!mycms_certificate_apply_certificate(certificate, &blob)) {
-			goto cleanup;
-		}
 	}
 
 	ret = true;
 
 cleanup:
-
-	__free_attributes(
-		system,
-		cert_attrs,
-		sizeof(cert_attrs) / sizeof(*cert_attrs)
-	);
 
 	return ret;
 }
@@ -1398,6 +1480,7 @@ mycms_certificate_driver_pkcs11_usage(void) {
 		"module: PKCS#11 module to load\n"
 		"token-label: token label\n"
 		"cert-label: certificate label\n"
+		"cert-is-private: 1 if certificate is private object\n"
 		"init-reserved: reserved C_Initialize argument\n"
 		"\n"
 		"PASSPHRASE EXPRESSION WHAT\n"
