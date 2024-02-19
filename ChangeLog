@@ -1,6 +1,9 @@
 mycms
 Copyright (c) 2022-2024 Alon Bar-Lev <alon.barlev@gmail.com>
 
+????-??-?? - Version 0.3.0
+
+
 2024-02-19 - Version 0.2.0
 * pkcs11: support private cefrtificate objects.
 * openssl: better support of openssl-3 series.
