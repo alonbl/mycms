@@ -853,9 +853,7 @@ __open_object(
 	const bool private_object,
 	const CK_ATTRIBUTE * const filter,
 	const CK_ULONG filter_size,
-	CK_OBJECT_HANDLE * const handle,
-	CK_ATTRIBUTE * attrs,
-	const CK_ULONG attrs_size
+	CK_OBJECT_HANDLE * const handle
 ) {
 	mycms_system system = NULL;
 	__mycms_certificate_driver_pkcs11 certificate_pkcs11 = NULL;
@@ -943,16 +941,6 @@ __open_object(
 		}
 	}
 
-	if (__get_object_attributes(
-		system,
-		certificate_pkcs11,
-		*handle,
-		attrs,
-		attrs_size
-	) != CKR_OK) {
-		goto cleanup;
-	}
-
 	ret = true;
 
 cleanup:
@@ -998,11 +986,19 @@ __open_certificate(
 			private,
 			filter,
 			sizeof(filter) / sizeof(*filter),
-			&h,
-			attrs,
-			sizeof(attrs) / sizeof(*attrs)
+			&h
 		)
 	) {
+		goto cleanup;
+	}
+
+	if (__get_object_attributes(
+		system,
+		certificate_pkcs11,
+		h,
+		attrs,
+		sizeof(attrs) / sizeof(*attrs)
+	) != CKR_OK) {
 		goto cleanup;
 	}
 
@@ -1075,16 +1071,22 @@ __open_private_key(
 			true,
 			filter,
 			sizeof(filter) / sizeof(*filter),
-			&certificate_pkcs11->key_handle,
-			attrs,
-			sizeof(attrs) / sizeof(*attrs)
+			&certificate_pkcs11->key_handle
 		)
 	) {
 		goto cleanup;
 	}
 
-	if (attrs[0].ulValueLen != CK_UNAVAILABLE_INFORMATION) {
-		certificate_pkcs11->always_authenticate = *(CK_BBOOL *)attrs[0].pValue != CK_FALSE;
+	if (__get_object_attributes(
+		system,
+		certificate_pkcs11,
+		certificate_pkcs11->key_handle,
+		attrs,
+		sizeof(attrs) / sizeof(*attrs)
+	) == CKR_OK) {
+		if (attrs[0].ulValueLen != CK_UNAVAILABLE_INFORMATION) {
+			certificate_pkcs11->always_authenticate = *(CK_BBOOL *)attrs[0].pValue != CK_FALSE;
+		}
 	}
 
 	ret = true;
