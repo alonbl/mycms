@@ -42,6 +42,7 @@ built.subca:	\
 	cp subca.vars subca.pki/vars
 	touch subca.pki/.rnd
 
+	cp /usr/share/easy-rsa/openssl-easyrsa.cnf subca.pki
 	cat "$(srcdir)/oids.cnf" >> subca.pki/openssl-easyrsa.cnf
 	sed -i '1i oid_section = oids' subca.pki/openssl-easyrsa.cnf
 
