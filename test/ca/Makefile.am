@@ -17,8 +17,6 @@ dist_noinst_SCRIPTS = \
 
 dist_noinst_DATA = \
 	oids.cnf \
-	x509-types/COMMON \
-	x509-types/ca \
 	x509-types/encrypt \
 	x509-types/sign \
 	$(NULL)
@@ -42,6 +40,7 @@ built.subca:	\
 	cp subca.vars subca.pki/vars
 	touch subca.pki/.rnd
 
+	cat "$$(dirname "$(EASYRSA)")/openssl-easyrsa.cnf" > subca.pki/openssl-easyrsa.cnf
 	cat "$(srcdir)/oids.cnf" >> subca.pki/openssl-easyrsa.cnf
 	sed -i '1i oid_section = oids' subca.pki/openssl-easyrsa.cnf
 
