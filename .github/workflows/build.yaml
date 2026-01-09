@@ -39,16 +39,16 @@ jobs:
           branch: OpenSSL_1_1_1-stable
           cross-compile-prefix: x86_64-w64-mingw32-
           target: mingw64
-        - version: "3.0.13"
+        - version: "3.0.18"
           os: linux
           dependencies:
-          branch: openssl-3.0.13
+          branch: openssl-3.0.18
           cross-compile-prefix:
           target:
-        - version: "3.0.13"
+        - version: "3.0.18"
           os: windows
           dependencies: mingw-w64
-          branch: openssl-3.0.13
+          branch: openssl-3.0.18
           cross-compile-prefix: x86_64-w64-mingw32-
           target: mingw64
         - version: "3.1.5"
@@ -61,6 +61,18 @@ jobs:
           os: windows
           dependencies: mingw-w64
           branch: openssl-3.1.5
+          cross-compile-prefix: x86_64-w64-mingw32-
+          target: mingw64
+        - version: "3.2.6"
+          os: linux
+          dependencies:
+          branch: openssl-3.2.6
+          cross-compile-prefix:
+          target:
+        - version: "3.2.6"
+          os: windows
+          dependencies: mingw-w64
+          branch: openssl-3.2.6
           cross-compile-prefix: x86_64-w64-mingw32-
           target: mingw64
     env:
@@ -179,8 +191,9 @@ jobs:
         - 1
         crypto:
         - openssl-1.1.1
-        - openssl-3.0.13
+        - openssl-3.0.18
         - openssl-3.1.5
+        - openssl-3.2.6
         exclude:
         - os: windows
           valgrind: 1
@@ -297,8 +310,9 @@ jobs:
       matrix:
         crypto:
         - openssl-1.1.1
-        - openssl-3.0.13
+        - openssl-3.0.18
         - openssl-3.1.5
+        - openssl-3.2.6
     defaults:
       run:
         shell: wsl-bash {0}
@@ -438,8 +452,9 @@ jobs:
       matrix:
         crypto:
         - openssl-1.1.1
-        - openssl-3.0.13
+        - openssl-3.0.18
         - openssl-3.1.5
+        - openssl-3.2.6
 
     steps:
     - name: dependencies
@@ -517,8 +532,9 @@ jobs:
       matrix:
         crypto:
         - openssl-1.1.1
-        - openssl-3.0.13
+        - openssl-3.0.18
         - openssl-3.1.5
+        - openssl-3.2.6
 
     steps:
     - name: mycms-misc-download
