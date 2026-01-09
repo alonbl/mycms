@@ -39,34 +39,28 @@ jobs:
           branch: OpenSSL_1_1_1-stable
           cross-compile-prefix: x86_64-w64-mingw32-
           target: mingw64
-        - version: "3.0.7"
+        - version: "3.0.13"
           os: linux
           dependencies:
-          branch: openssl-3.0.7
+          branch: openssl-3.0.13
           cross-compile-prefix:
           target:
-        - version: "3.0"
-          os: linux
-          dependencies:
-          branch: openssl-3.0
-          cross-compile-prefix:
-          target:
-        - version: "3.0"
+        - version: "3.0.13"
           os: windows
           dependencies: mingw-w64
-          branch: openssl-3.0
+          branch: openssl-3.0.13
           cross-compile-prefix: x86_64-w64-mingw32-
           target: mingw64
-        - version: "3.1"
+        - version: "3.1.5"
           os: linux
           dependencies:
-          branch: openssl-3.1
+          branch: openssl-3.1.5
           cross-compile-prefix:
           target:
-        - version: "3.1"
+        - version: "3.1.5"
           os: windows
           dependencies: mingw-w64
-          branch: openssl-3.1
+          branch: openssl-3.1.5
           cross-compile-prefix: x86_64-w64-mingw32-
           target: mingw64
     env:
@@ -124,7 +118,7 @@ jobs:
                 libssl-dev \
                 libtool \
                 pkg-config \
-                softhsm
+                softhsm2
     - name: mycms-checkout
       uses: actions/checkout@v4
       with:
@@ -185,14 +179,11 @@ jobs:
         - 1
         crypto:
         - openssl-1.1.1
-        - openssl-3.0.7
-        - openssl-3.0
-        - openssl-3.1
+        - openssl-3.0.13
+        - openssl-3.1.5
         exclude:
         - os: windows
           valgrind: 1
-        - os: windows
-          crypto: openssl-3.0.7
 
     env:
       crypto_name: ${{ matrix.crypto }}-binaries-${{ matrix.os }}
@@ -221,7 +212,7 @@ jobs:
         esac
         case "${{ matrix.os }}/${{ matrix.crypto}}/${{ matrix.valgrind }}" in
             linux/*/*)
-                MYCMS_DEPS="${MYCMS_DEPS} softhsm"
+                MYCMS_DEPS="${MYCMS_DEPS} softhsm2"
                 ;;
             windows/*/*)
                 MYCMS_HOST="x86_64-w64-mingw32"
@@ -306,8 +297,8 @@ jobs:
       matrix:
         crypto:
         - openssl-1.1.1
-        - openssl-3.0
-        - openssl-3.1
+        - openssl-3.0.13
+        - openssl-3.1.5
     defaults:
       run:
         shell: wsl-bash {0}
@@ -447,8 +438,8 @@ jobs:
       matrix:
         crypto:
         - openssl-1.1.1
-        - openssl-3.0
-        - openssl-3.1
+        - openssl-3.0.13
+        - openssl-3.1.5
 
     steps:
     - name: dependencies
@@ -526,8 +517,8 @@ jobs:
       matrix:
         crypto:
         - openssl-1.1.1
-        - openssl-3.0
-        - openssl-3.1
+        - openssl-3.0.13
+        - openssl-3.1.5
 
     steps:
     - name: mycms-misc-download
